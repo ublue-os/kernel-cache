@@ -6,7 +6,3 @@
 ### Features
 
 * initial implementation ([45ecfc7](https://github.com/ublue-os/fsync/commit/45ecfc7d8418d7decc5b17da4f37ac6af16a02fd))
-
-
-### Bug Fixes
-

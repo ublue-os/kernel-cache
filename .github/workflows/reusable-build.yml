@@ -1,0 +1,191 @@
+name: Cache Fsync
+on:
+  merge_group:
+  schedule:
+    - cron: "45 2 * * *" # 0245 UTC everyday
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: fsync
+  IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}-${{ inputs.fedora_version }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: fsync
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        fedora_version:
+          - 39
+          - 40
+    steps:
+      - name: Checkout Push to Registry action
+        uses: actions/checkout@v4
+
+      - name: Verify Akmods Image
+        uses: EyeCantCU/cosign-action/verify@v0.2.2
+        with:
+          containers: akmods:fsync-40
+          pubkey: https://raw.githubusercontent.com/ublue-os/akmods/main/cosign.pub
+          registry: ghcr.io/ublue-os
+
+      - name: Get Fsync Kernel Version
+        id: Version
+        uses: Wandalen/wretry.action@v3.5.0
+        with:
+          attempt_limit: 3
+          attempt_delay: 15000
+          command: |
+            kernel_release=$(skopeo inspect docker://ghcr.io/ublue-os/akmods:fsync-40 | jq -r '.Labels["ostree.linux"] | split(".fc")[0]')
+            major=$(echo "$kernel_release" | cut -d '.' -f 1)
+            minor=$(echo "$kernel_release" | cut -d '.' -f 2)
+            patch=$(echo "$kernel_release" | cut -d '.' -f 3)
+            kernel_major_minor_patch="${major}.${minor}.${patch}"
+            ver=$(skopeo inspect docker://quay.io/fedora-ostree-desktops/base:${{ matrix.fedora_version }} | jq -r '.Labels["org.opencontainers.image.version"]')
+            if [ -z "$ver" ] || [ "null" = "$ver" ]; then
+              echo "inspected image version must not be empty or null"
+              exit 1
+            fi
+            echo "version=$ver" >> $GITHUB_ENV
+            echo "kernel_release=${kernel_release}" >> $GITHUB_ENV
+            echo "kernel_major_minor_patch=${kernel_major_minor_patch}" >> $GITHUB_ENV
+
+      - name: Checkout Push to Registry Action
+        uses: actions/checkout@v4
+
+      - name: Generate Tags
+        id: generate_tags
+        shell: bash
+        run: |
+          tag="${{ env.kernel_major_minor_patch }}.fsync.fc${{ matrix.fedora_version }}.x86_64"
+          COMMIT_TAGS=()
+          COMMIT_TAGS+=("pr-${{ github.event_number }}-${tag}")
+          COMMIT_TAGS+=("${GITHUB_SHA::7}-${tag}")
+
+          BUILD_TAG=(${tag})
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+              echo "Generated the following commit tags: "
+              for TAG in "${COMMIT_TAGS[@]}"; do
+                  echo "${TAG}"
+              done
+
+              alias_tags=("${COMMIT_TAGS[@]}")
+          else
+              alias_tags=("${BUILD_TAG[@]}")
+          fi
+
+          echo "Generated the following build tags: "
+          for TAG in "${alias_tags[@]}"; do
+              echo "${TAG}"
+          done
+
+          echo "alias_tags=${alias_tags[*]}" >> $GITHUB_OUTPUT
+
+      - name: Pull Image
+        uses: Wandalen/wretry.action@v3.5.0
+        with:
+          attempt_limit: 3
+          attempt_delay: 15000
+          command: |
+            podman pull quay.io/fedora-ostree-desktops/base:${{ matrix.fedora_version }}
+
+      - name: Build Metadata
+        uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: |
+            ${{ env.IMAGE_NAME }}
+          labels: |
+            org.opencontainers.image.title=${{ env.IMAGE_NAME }}
+            org.opencontainers.image.description=A caching layer for sentry/kernel-fsync fsync kernel's
+            org.opencontainers.image.version=${{ env.version }}
+            ostree.linux="${{ env.kernel_major_minor_patch }}.fc${{ matrix.fedora_version }}.x86_64"
+            io.artifacthub.package.readme-url=https://raw.githubusercontent.com/${{ github.repository }}/main/README.md
+            io.artifacthub.package.logo-url=https://avatars.githubusercontent.com/u/1728152?s=200&v=4
+
+      - name: Build Image
+        id: build_image
+        uses: redhat-actions/buildah-build@v2
+        with:
+          containerfiles: |
+            ./Containerfile
+          image: ${{ env.IMAGE_NAME }}
+          tags: ${{ steps.generate_tags.outputs.alias_tags }}
+          build-args: |
+            FEDORA_VERSION=${{ matrix.fedora_version }}
+            KERNEL_VERSION=${{ env.kernel_major_minor_patch }}
+          labels: ${{ steps.meta.outputs.labels }}
+          oci: false
+
+      - name: Lowercase Registry
+        id: registry_case
+        uses: ASzc/change-string-case-action@v6
+        with:
+          string: ${{ env.IMAGE_REGISTRY }}
+
+      - name: Push to GHCR
+        uses: Wandalen/wretry.action@v3.5.0
+        id: push
+        if: github.event_name != 'pull_request'
+        env:
+          REGISTRY_USER: ${{ github.actor }}
+          REGISTRY_PASSWORD: ${{ github.token }}
+        with:
+          action: redhat-actions/push-to-registry@v2
+          attempt_limit: 3
+          attempt_delay: 15000
+          with: |
+            image: ${{ steps.build_image.outputs.image }}
+            tags: ${{ steps.build_image.outputs.tags }}
+            registry: ${{ steps.registry_case.outputs.lowercase }}
+            username: ${{ env.REGISTRY_USER }}
+            password: ${{ env.REGISTRY_PASSWORD }}
+            extra-args: |
+              --disable-content-trust
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Sign container
+      - uses: sigstore/cosign-installer@v3.5.0
+        if: github.event_name != 'pull_request'
+
+      - name: Sign container image
+        if: github.event_name != 'pull_request'
+        run: |
+          cosign sign -y --key env://COSIGN_PRIVATE_KEY ${{ steps.registry_case.outputs.lowercase }}/${{ steps.build_image.outputs.image }}@${TAGS}
+        env:
+          TAGS: ${{ steps.push.outputs.outputs && fromJSON(steps.push.outputs.outputs).digest }}
+          COSIGN_EXPERIMENTAL: false
+          COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
+
+      - name: Echo outputs
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "${{ toJSON(steps.push.outputs) }}"
+
+  check:
+    name: Check all builds successful
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Exit on failure
+        if: ${{ needs.build.result == 'failure' }}
+        shell: bash
+        run: exit 1
+      - name: Exit
+        shell: bash
+        run: exit 0

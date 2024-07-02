@@ -17,7 +17,8 @@ dnf download -y \
     kernel-modules-core-"${kernel_version}" \
     kernel-modules-extra-"${kernel_version}" \
     kernel-headers-"${kernel_version}" \
-    kernel-devel-"${kernel_version}"
+    kernel-devel-"${kernel_version}" \
+    kernel-uki-virt-"${kernel_version}"
 
 mkdir -p /tmp/rpms
 

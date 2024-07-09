@@ -120,7 +120,7 @@ jobs:
           tag="${{ env.kernel_release }}"
           short_tag=$(echo ${{ env.kernel_major_minor_patch  }} | cut -d "-" -f 1)
           COMMIT_TAGS=()
-          COMMIT_TAGS+=("pr-${{ github.event_number }}-${tag}")
+          COMMIT_TAGS+=("pr-${{ github.event.number }}-${tag}")
           COMMIT_TAGS+=("${GITHUB_SHA::7}-${tag}")
 
           BUILD_TAGS=()

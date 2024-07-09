@@ -65,11 +65,13 @@ jobs:
           attempt_limit: 3
           attempt_delay: 15000
           command: |
-            container_name="fq-$(uuidgen)"
-            dnf="podman exec $container_name dnf"
+            if [[ ${{ matrix.kernel_flavor }} =~ asus|fsync|surface ]]; then
+              container_name="fq-$(uuidgen)"
+              dnf="podman exec $container_name dnf"
 
-            podman run --entrypoint /bin/bash --name "$container_name" -dt "${{ env.build_image }}"
-            $dnf install -y dnf-plugins-core
+              podman run --entrypoint /bin/bash --name "$container_name" -dt "${{ env.build_image }}"
+              $dnf install -y dnf-plugins-core
+            fi
 
             case ${{ matrix.kernel_flavor }} in
               "asus")

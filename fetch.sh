@@ -46,7 +46,9 @@ elif [[ "${kernel_flavor}" == "surface" ]]; then
         kernel-surface-modules-core-"${kernel_version}" \
         kernel-surface-modules-extra-"${kernel_version}" \
         kernel-surface-devel-"${kernel_version}" \
-        kernel-surface-devel-matched-"${kernel_version}"
+        kernel-surface-devel-matched-"${kernel_version}" \
+        kernel-surface-default-watchdog-"${kernel_version}" \
+        iptsd
 else
     KERNEL_MAJOR_MINOR_PATCH=$(echo "$kernel_version" | cut -d '-' -f 1)
     KERNEL_RELEASE="$(echo "$kernel_version" | cut -d - -f 2 | cut -d . -f 1).$(echo "$kernel_version" | cut -d - -f 2 | cut -d . -f 2)"

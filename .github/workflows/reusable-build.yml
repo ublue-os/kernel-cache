@@ -27,21 +27,22 @@ jobs:
       fail-fast: false
       matrix:
         kernel_flavor:
+          - asus
+          - fsync
+          - surface
           - main
           - coreos-stable
           - coreos-testing
-          - asus
-          - surface
-          - fsync
         fedora_version:
+          - 39
           - 40
-        include:
+        exclude:
           - fedora_version: 39
-            kernel_flavor: main
+            kernel_flavor: asus
           - fedora_version: 39
-            kernel_flavor: coreos-stable
+            kernel_flavor: coreos-testing
           - fedora_version: 39
-            kernel_flavor: surface
+            kernel_flavor: fsync
 
     steps:
       - name: Checkout Push to Registry action

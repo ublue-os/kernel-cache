@@ -94,7 +94,7 @@ jobs:
                 coreos_fedora_version=$(echo $linux | grep -oP 'fc\K[0-9]+')
                 if [[ "${{ matrix.fedora_version }}" != coreos_fedora_version ]]; then
                    major_minor_patch=$(echo $linux | cut -d - -f 1)
-                   linux="${major_minor_patch}-200.fc$(($coreos_fedora_version - 1)).$(uname -m)"
+                   linux="${major_minor_patch}-200.fc${{ matrix.fedora_version }}.$(uname -m)"
                 fi
                 ;;
               "coreos-testing")

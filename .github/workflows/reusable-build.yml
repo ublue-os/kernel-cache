@@ -54,7 +54,6 @@ jobs:
           attempt_limit: 3
           attempt_delay: 15000
           command: |
-            set -x
             build_image="quay.io/fedora/fedora:${{ matrix.fedora_version }}"
             echo "build_image=$build_image" >> "$GITHUB_ENV"
             podman pull "$build_image"
@@ -66,7 +65,6 @@ jobs:
           attempt_limit: 3
           attempt_delay: 15000
           command: |
-            set -x
             if [[ ${{ matrix.kernel_flavor }} =~ asus|fsync|surface ]]; then
               container_name="fq-$(uuidgen)"
               dnf="podman exec $container_name dnf"
@@ -114,6 +112,7 @@ jobs:
               minor=$(echo "$linux" | cut -d '.' -f 2)
               patch=$(echo "$linux" | cut -d '.' -f 3)
               kernel_major_minor_patch="${major}.${minor}.${patch}"
+              echo "Kernel Version is ${linux}"
               echo "kernel_release=${linux}" >> $GITHUB_ENV
               echo "kernel_major_minor_patch=${kernel_major_minor_patch}" >> $GITHUB_ENV
 
@@ -121,31 +120,31 @@ jobs:
         id: generate_tags
         shell: bash
         run: |
-          set -x
           tag="${{ env.kernel_release }}"
           short_tag=$(echo ${{ env.kernel_major_minor_patch  }} | cut -d "-" -f 1)
           COMMIT_TAGS=()
-          COMMIT_TAGS+=("pr-${{ github.event.number }}-${tag}")
-          COMMIT_TAGS+=("${GITHUB_SHA::7}-${tag}")
           COMMIT_TAGS+=("pr-${{ github.event.number }}-${{ matrix.fedora_version }}")
+          COMMIT_TAGS+=("pr-${{ github.event.number }}-${{ matrix.fedora_version }}-${short_tag}")
+          COMMIT_TAGS+=("pr-${{ github.event.number }}-${tag}")
           COMMIT_TAGS+=("${GITHUB_SHA::7}-${{ matrix.fedora_version }}")
+          COMMIT_TAGS+=("${GITHUB_SHA::7}-${{ matrix.fedora_version }}-${short_tag}")
+          COMMIT_TAGS+=("${GITHUB_SHA::7}-${tag}")
 
           BUILD_TAGS=()
-          BUILD_TAGS+=(${tag})
           BUILD_TAGS+=("${{ matrix.fedora_version }}")
           BUILD_TAGS+=(${{ matrix.fedora_version }}-${short_tag})
+          BUILD_TAGS+=(${tag})
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-              echo "Generated the following commit tags: "
-              for TAG in "${COMMIT_TAGS[@]}"; do
-                  echo "${TAG}"
-              done
-
+              # echo "Generated the following commit tags: "
+              # for TAG in "${COMMIT_TAGS[@]}"; do
+              #     echo "${TAG}"
+              # done
               alias_tags=("${COMMIT_TAGS[@]}")
           else
               alias_tags=("${BUILD_TAGS[@]}")
           fi
 
-          echo "Generated the following build tags: "
+          echo "Generated the following tags: "
           for TAG in "${alias_tags[@]}"; do
               echo "${TAG}"
           done

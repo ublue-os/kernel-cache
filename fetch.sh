@@ -155,7 +155,7 @@ fi
 if [[ "${kernel_flavor}" =~ surface ]]; then
     rpmrebuild --batch kernel-surface-core-"${kernel_version}"
     rm -f /usr/lib/modules/"${kernel_version}"/vmlinuz
-    dnf install -y \
+    dnf reinstall -y \
         /kernel-surface-"$kernel_version".rpm \
         /kernel-surface-modules-"$kernel_version".rpm \
         /kernel-surface-modules-core-"$kernel_version".rpm \
@@ -184,3 +184,6 @@ mv /root/rpmbuild/RPMS/"$(uname -m)"/kernel-*.rpm /tmp/rpms
 if [[ "${kernel_flavor}" =~ surface ]]; then
     cp iptsd-*.rpm libwacom-*.rpm /tmp/rpms
 fi
+
+# Delete keys in /tmp if we decide to publish this later
+rm -rf /tmp/certs

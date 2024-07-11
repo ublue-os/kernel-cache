@@ -167,10 +167,11 @@ jobs:
             io.artifacthub.package.logo-url=https://avatars.githubusercontent.com/u/1728152?s=200&v=4
 
       - name: Retrieve Signing Key
-        if: (github.event_name == 'scheduled' || github.event_name == 'workflow_dispatch' || github.event_name == 'merge_group') && github.event_name != 'pull_request'
+        if: github.event_name == 'scheduled' || github.event_name == 'workflow_dispatch' || github.event_name == 'merge_group'
+        shell: bash
         run: |
           mkdir -p certs
-          if [[ ${{ steps.build_image.outputs.tags }} =~ pr ]]; then
+          if [[ ${{ github.event_name }}  == 'pull_request' ]]; then
             echo "This should not have run... exiting..."
             exit 1
           else

@@ -193,7 +193,7 @@ jobs:
             FEDORA_VERSION=${{ matrix.fedora_version }}
             KERNEL_VERSION=${{ env.kernel_release }}
             KERNEL_FLAVOR=${{ matrix.kernel_flavor }}
-            DUAL_SIGN='true'
+            DUAL_SIGN=true
           labels: ${{ steps.meta.outputs.labels }}
           oci: false
 

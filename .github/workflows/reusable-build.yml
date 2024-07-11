@@ -171,7 +171,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p certs
-          if [[ ${{ github.event_name }}  == 'pull_request' ]]; then
+          if [[ "${{ github.event_name }}"  == 'pull_request' ]]; then
             echo "This should not have run... exiting..."
             exit 1
           else

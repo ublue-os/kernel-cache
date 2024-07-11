@@ -97,7 +97,7 @@ if [[ "${kernel_flavor}" =~ asus|fsync ]]; then
         /kernel-modules-core-"$kernel_version".rpm \
         /kernel-modules-extra-"$kernel_version".rpm \
         kernel-core-"${kernel_version}"
-elif [[ "${kernel_version}" =~ surface ]]; then
+elif [[ "${kernel_flavor}" =~ surface ]]; then
     dnf install -y \
         /kernel-surface-"$kernel_version".rpm \
         /kernel-surface-modules-"$kernel_version".rpm \
@@ -114,14 +114,16 @@ else
 fi
 
 # Strip Signatures from non-fedora Kernels
-if [[ ${kernel_flavor} =~ asus|surface|fsync ]]; then
-  EXISTING_SIGNATURES="$(sbverify --list /usr/lib/modules/$kernel_version/vmlinuz | grep '^signature \([0-9]\+\)$' | sed 's/^signature \([0-9]\+\)$/\1/')" || true
-  if [[ -n "$EXISTING_SIGNATURES" ]]; then
-      for SIGNUM in $EXISTING_SIGNATURES; do
-          echo "Found existing signature at signum $SIGNUM, removing..."
-          sbattach --remove /usr/lib/modules/"${kernel_version}"/vmlinuz
-      done
-  fi
+if [[ ${kernel_flavor} =~ main|coreos ]]; then
+    echo "Will not strip Fedora signature(s) from ${kernel_flavor} kernel."
+else
+    EXISTING_SIGNATURES="$(sbverify --list /usr/lib/modules/"$kernel_version"/vmlinuz | grep '^signature \([0-9]\+\)$' | sed 's/^signature \([0-9]\+\)$/\1/')" || true
+    if [[ -n "$EXISTING_SIGNATURES" ]]; then
+        for SIGNUM in $EXISTING_SIGNATURES; do
+            echo "Found existing signature at signum $SIGNUM, removing..."
+            sbattach --remove /usr/lib/modules/"${kernel_version}"/vmlinuz
+        done
+    fi
 fi
 
 # Sign Kernel with Key
@@ -132,12 +134,45 @@ sbverify --list /usr/lib/modules/"${kernel_version}"/vmlinuz
 
 rm -f "$PRIVATE_KEY_PATH" "$PUBLIC_KEY_PATH"
 
-# Rebuild RPMs
+if [[ ${DUAL_SIGN:-} == "true" ]]; then
+    SECOND_PUBLIC_KEY_PATH="/etc/pki/kernel/public/public_key_2.crt"
+    SECOND_PRIVATE_KEY_PATH="/etc/pki/kernel/private/public_key_2.priv"
+    if [[ ! -s /tmp/certs/private_key_2.priv ]]; then
+        echo "WARNING: Using test signing key."
+        cp /tmp/certs/private_key_2.priv{.test,}
+        cp /tmp/certs/public_key_2.der{.test,}
+        find /tmp/certs/
+    fi
+    openssl x509 -in /tmp/certs/public_key_2.der -out /tmp/certs/public_key_2.crt
+    install -Dm644 /tmp/certs/public_key_2.crt "$SECOND_PUBLIC_KEY_PATH"
+    install -Dm644 /tmp/certs/private_key_2.priv "$SECOND_PRIVATE_KEY_PATH"
+    sbsign --cert "$SECOND_PUBLIC_KEY_PATH" --key "$SECOND_PRIVATE_KEY_PATH" /usr/lib/modules/"${kernel_version}"/vmlinuz --output /usr/lib/modules/"${kernel_version}"/vmlinuz
+    sbverify --list /usr/lib/modules/"${kernel_version}"/vmlinuz
+    rm -f "$SECOND_PRIVATE_KEY_PATH" "$SECOND_PUBLIC_KEY_PATH"
+fi
+
+# Rebuild RPMs and Verify
 if [[ "${kernel_flavor}" =~ surface ]]; then
     rpmrebuild --batch kernel-surface-core-"${kernel_version}"
+    rm -f /usr/lib/modules/"${kernel_version}"/vmlinuz
+    dnf install -y \
+        /kernel-surface-"$kernel_version".rpm \
+        /kernel-surface-modules-"$kernel_version".rpm \
+        /kernel-surface-modules-core-"$kernel_version".rpm \
+        /kernel-surface-modules-extra-"$kernel_version".rpm \
+        /root/rpmbuild/RPMS/"$(uname -m)"/kernel-*.rpm
 else
     rpmrebuild --batch kernel-core-"${kernel_version}"
+    rm -f /usr/lib/modules/"${kernel_version}"/vmlinuz
+    dnf reinstall -y \
+        /kernel-"$kernel_version".rpm \
+        /kernel-modules-"$kernel_version".rpm \
+        /kernel-modules-core-"$kernel_version".rpm \
+        /kernel-modules-extra-"$kernel_version".rpm \
+        /root/rpmbuild/RPMS/"$(uname -m)"/kernel-*.rpm
 fi
+
+sbverify --list /usr/lib/modules/"${kernel_version}"/vmlinuz
 
 # Make Temp Dir
 mkdir -p /tmp/rpms

@@ -1,4 +1,4 @@
-name: Cache Fsync
+name: Cache Kernels
 on:
   merge_group:
   schedule:

@@ -2,14 +2,15 @@ ARG BASE_IMAGE=quay.io/fedora/fedora
 ARG FEDORA_VERSION=${FEDORA_VERSION:-40}
 
 # Build from base-main since its our smallest image and we control the tags
-FROM ${BASE_IMAGE}:${FEDORA_VERSION} as builder
-ARG KERNEL_VERSION=${:-}
-ARG FEDORA_VERSION=${FEDORA_VERSION:-}
-ARG KERNEL_FLAVOR=${:-}
+FROM ${BASE_IMAGE}:${FEDORA_VERSION} AS builder
+ARG KERNEL_VERSION="${:-6.8.11-300.fc40.x86_64}"
+ARG FEDORA_VERSION="${FEDORA_VERSION:-40}"
+ARG KERNEL_FLAVOR="${:-coreos-stable}"
 
-COPY fetch.sh /
+COPY fetch.sh /tmp
+COPY certs /tmp/certs
 
-RUN /fetch.sh
+RUN /tmp/fetch.sh
 
-FROM scratch as rpms
+FROM scratch AS rpms
 COPY --from=builder /tmp/rpms /tmp/rpms

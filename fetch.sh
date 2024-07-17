@@ -71,10 +71,10 @@ else
 
 fi
 
-if [[ "${kernel_flavor}" =~ fsync ]]; then
-    dnf download -y \
-        kernel-headers-"${kernel_version}"
-fi
+#if [[ "${kernel_flavor}" =~ fsync ]]; then
+#    dnf download -y \
+#        kernel-headers-"${kernel_version}"
+#fi
 
 if [[ ! -s /tmp/certs/private_key.priv ]]; then
     echo "WARNING: Using test signing key."

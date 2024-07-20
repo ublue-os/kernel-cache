@@ -206,9 +206,9 @@ jobs:
             sudo apt update
             sudo apt install sbsigntool curl openssl rpm2cpio
           fi
-          podman create --name ${{env.IMAGE_NAME}}-$(echo "${{ steps.generate-tags.outputs.alias_tags }}" | cut -d " " -f 1) "${{ env.IMAGE_NAME }}":$(echo "${{ steps.generate-tags.outputs.alias_tags }}" | cut -d " " -f 1) sh
-          podman export ${{env.IMAGE_NAME}}-$(echo "${{ steps.generate-tags.outputs.alias_tags }}" | cut -d " " -f 1) > /tmp/${{env.IMAGE_NAME}}-$(echo "${{ steps.generate-tags.outputs.alias_tags }}" | cut -d " " -f 1).tar
-          tar xvf /tmp/${{env.IMAGE_NAME}}-$(echo "${{ steps.generate-tags.outputs.alias_tags }}" | cut -d " " -f 1).tar -C /
+          podman create --name "${{ matrix.kernel_flavor}}"-kernel-"$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1)" "${{ matrix.kernel_flavor}}"-kernel:$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1) sh
+          podman export "${{ matrix.kernel_flavor}}"-kernel-"$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1)" > /tmp/"${{ matrix.kernel_flavor}}"-kernel-"$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1)".tar
+          tar xvf tmp/"${{ matrix.kernel_flavor}}"-kernel-"$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1)".tar -C /
           cd /tmp/rpms/
           if [[ "${{ matrix.kernel_flavor }}" == "surface" ]]; then
             rpm2cpio kernel-surface-core-"${{ env.kernel_release }}".rpm | cpio -idmv

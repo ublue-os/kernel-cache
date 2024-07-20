@@ -208,8 +208,8 @@ jobs:
           fi
           podman create --name "${{ matrix.kernel_flavor}}"-kernel-"$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1)" "${{ matrix.kernel_flavor}}"-kernel:$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1) sh
           podman export "${{ matrix.kernel_flavor}}"-kernel-"$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1)" > /tmp/"${{ matrix.kernel_flavor}}"-kernel-"$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1)".tar
-          tar xvf /tmp/"${{ matrix.kernel_flavor}}"-kernel-"$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1)".tar -C /
-          cd /tmp/rpms/
+          tar xvf /tmp/"${{ matrix.kernel_flavor}}"-kernel-"$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1)".tar -C /tmp
+          cd /tmp/tmp/rpms/
           if [[ "${{ matrix.kernel_flavor }}" == "surface" ]]; then
             rpm2cpio kernel-surface-core-"${{ env.kernel_release }}".rpm | cpio -idmv
           else

@@ -202,7 +202,7 @@ jobs:
         shell: bash
         run: |
           set -x
-          if [[ ! $(command -v sbverify) || ! $(command -v curl) || ! $(command -v openssl) || ! $(command -v rpm2cpio)]]; then
+          if [[ ! $(command -v sbverify) || ! $(command -v curl) || ! $(command -v openssl) || ! $(command -v rpm2cpio) ]]; then
             sudo apt update
             sudo apt install sbsigntool curl openssl rpm2cpio
           fi

@@ -76,15 +76,15 @@ jobs:
             case ${{ matrix.kernel_flavor }} in
               "asus")
                 $dnf copr enable -y lukenukem/asus-kernel
-                linux=$($dnf repoquery --repoid copr:copr.fedorainfracloud.org:lukenukem:asus-kernel --whatprovides kernel | tail -n1 | sed 's/.*://')
+                linux=$($dnf repoquery --repoid copr:copr.fedorainfracloud.org:lukenukem:asus-kernel --whatprovides kernel | sort -V | tail -n1 | sed 's/.*://')
                 ;;
               "fsync")
                 $dnf copr enable -y sentry/kernel-fsync
-                linux=$($dnf repoquery --repoid copr:copr.fedorainfracloud.org:sentry:kernel-fsync --whatprovides kernel | tail -n1 | sed 's/.*://')
+                linux=$($dnf repoquery --repoid copr:copr.fedorainfracloud.org:sentry:kernel-fsync --whatprovides kernel | sort -V | tail -n1 | sed 's/.*://')
                 ;;
               "surface")
                 $dnf config-manager --add-repo=https://pkg.surfacelinux.com/fedora/linux-surface.repo
-                linux=$($dnf repoquery --repoid linux-surface --whatprovides kernel-surface | tail -n1 | sed 's/.*://')
+                linux=$($dnf repoquery --repoid linux-surface --whatprovides kernel-surface | sort -V | tail -n1 | sed 's/.*://')
                 ;;
               "main")
                 linux=$(skopeo inspect docker://quay.io/fedora-ostree-desktops/base:${{ matrix.fedora_version }} | jq -r '.Labels["ostree.linux"]' )

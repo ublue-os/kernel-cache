@@ -83,11 +83,11 @@ jobs:
               kernel_rel="$kernel_rel_part.fc${{ matrix.fedora_version }}"
               kernel_version="$major_minor_patch-$kernel_rel.$arch"
               URL="https://kojipkgs.fedoraproject.org/packages/kernel/"$major_minor_patch"/"$kernel_rel"/"$arch"/kernel-"$kernel_version".rpm"
-              echo "Looking for ${coreos_version} kernel: $kernel_version"
+              echo "Querying koji for ${coreos_version} kernel: $kernel_version"
               echo "$URL"
               HTTP_RESP=$(curl -sI "$URL" | grep ^HTTP)
               if grep -qv "200 OK" <<< "${HTTP_RESP}"; then
-                echo "Failed to find $coreos_version kernel: $kernel_version"
+                echo "Koji failed to find $coreos_version kernel: $kernel_version"
                 case "$kernel_rel_part" in
                   "300")
                     kernel_rel_part="200"
@@ -104,15 +104,15 @@ jobs:
                 kernel_rel="$kernel_rel_part.fc${{ matrix.fedora_version }}"
                 kernel_version="$major_minor_patch-$kernel_rel.$arch"
                 URL="https://kojipkgs.fedoraproject.org/packages/kernel/"$major_minor_patch"/"$kernel_rel"/"$arch"/kernel-"$kernel_version".rpm"
-                echo "Retrying ${coreos_version} kernel: $kernel_version"
+                echo "Re-querying koji for ${coreos_version} kernel: $kernel_version"
                 echo "$URL"
                 HTTP_RESP=$(curl -sI "$URL" | grep ^HTTP)
                 if grep -qv "200 OK" <<< "${HTTP_RESP}"; then
-                  echo "Kernel $kernel_version not found on Koji"
+                  echo "Koji failed to find $coreos_version kernel: $kernel_version"
                 fi
               fi
               if grep -q "200 OK" <<< "${HTTP_RESP}"; then
-                linux=$image_linux
+                linux=$kernel_version
               fi
             }
 

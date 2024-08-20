@@ -163,14 +163,17 @@ jobs:
           COMMIT_TAGS=()
           COMMIT_TAGS+=("pr-${{ github.event.number }}-${{ matrix.fedora_version }}")
           COMMIT_TAGS+=("pr-${{ github.event.number }}-${{ matrix.fedora_version }}-${short_tag}")
+          COMMIT_TAGS+=("pr-${{ github.event.number }}-${{ matrix.fedora_version }}-${tag}")
           COMMIT_TAGS+=("pr-${{ github.event.number }}-${tag}")
           COMMIT_TAGS+=("${GITHUB_SHA::7}-${{ matrix.fedora_version }}")
           COMMIT_TAGS+=("${GITHUB_SHA::7}-${{ matrix.fedora_version }}-${short_tag}")
+          COMMIT_TAGS+=("${GITHUB_SHA::7}-${{ matrix.fedora_version }}-${tag}")
           COMMIT_TAGS+=("${GITHUB_SHA::7}-${tag}")
 
           BUILD_TAGS=()
           BUILD_TAGS+=("${{ matrix.fedora_version }}")
           BUILD_TAGS+=(${{ matrix.fedora_version }}-${short_tag})
+          BUILD_TAGS+=(${{ matrix.fedora_version }}-${tag})
           BUILD_TAGS+=(${tag})
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
               # echo "Generated the following commit tags: "

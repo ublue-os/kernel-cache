@@ -171,6 +171,7 @@ jobs:
           BUILD_TAGS=()
           BUILD_TAGS+=("${{ matrix.fedora_version }}")
           BUILD_TAGS+=(${{ matrix.fedora_version }}-${short_tag})
+          BUILD_TAGS+=(${{ matrix.fedora_version }}-${{ env.kernel_release }})
           BUILD_TAGS+=(${tag})
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
               # echo "Generated the following commit tags: "

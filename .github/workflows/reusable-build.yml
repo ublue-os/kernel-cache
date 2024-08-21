@@ -29,6 +29,7 @@ jobs:
         kernel_flavor:
           - asus
           - fsync
+          - fsync-ba
           - surface
           - main
           - coreos-stable
@@ -43,6 +44,8 @@ jobs:
             kernel_flavor: coreos-testing
           - fedora_version: 39
             kernel_flavor: fsync
+          - fedora_version: 39
+            kernel_flavor: fsync-ba
 
     steps:
       - name: Checkout Push to Registry action
@@ -65,7 +68,7 @@ jobs:
           attempt_limit: 3
           attempt_delay: 15000
           command: |
-            if [[ ${{ matrix.kernel_flavor }} =~ asus|fsync|surface ]]; then
+            if [[ ${{ matrix.kernel_flavor }} =~ asus|fsync|fsync-ba|surface ]]; then
               container_name="fq-$(uuidgen)"
               dnf="podman exec $container_name dnf"
 
@@ -124,6 +127,10 @@ jobs:
               "fsync")
                 $dnf copr enable -y sentry/kernel-fsync
                 linux=$($dnf repoquery --repoid copr:copr.fedorainfracloud.org:sentry:kernel-fsync --whatprovides kernel | sort -V | tail -n1 | sed 's/.*://')
+                ;;
+              "fsync-ba")
+                $dnf copr enable -y sentry/kernel-ba
+                linux=$($dnf repoquery --repoid copr:copr.fedorainfracloud.org:sentry:kernel-ba --whatprovides kernel | sort -V | tail -n1 | sed 's/.*://')
                 ;;
               "surface")
                 $dnf config-manager --add-repo=https://pkg.surfacelinux.com/fedora/linux-surface.repo

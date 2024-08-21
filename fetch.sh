@@ -18,6 +18,9 @@ case "$kernel_flavor" in
     "fsync")
         dnf copr enable -y sentry/kernel-fsync
         ;;
+    "fsync-ba")
+        dnf copr enable -y sentry/kernel-ba
+        ;;
     "surface")
         dnf config-manager --add-repo=https://pkg.surfacelinux.com/fedora/linux-surface.repo
         ;;
@@ -71,7 +74,7 @@ else
 
 fi
 
-if [[ "${kernel_flavor}" =~ fsync ]]; then
+if [[ "${kernel_flavor}" =~ fsync|fsync-ba ]]; then
     dnf download -y \
         kernel-headers-"${kernel_version}"
 fi
@@ -90,7 +93,7 @@ openssl x509 -in /tmp/certs/public_key.der -out /tmp/certs/public_key.crt
 install -Dm644 /tmp/certs/public_key.crt "$PUBLIC_KEY_PATH"
 install -Dm644 /tmp/certs/private_key.priv "$PRIVATE_KEY_PATH"
 
-if [[ "${kernel_flavor}" =~ asus|fsync ]]; then
+if [[ "${kernel_flavor}" =~ asus|fsync|fsync-ba ]]; then
     dnf install -y \
         /kernel-"$kernel_version".rpm \
         /kernel-modules-"$kernel_version".rpm \

@@ -37,6 +37,7 @@ jobs:
         fedora_version:
           - 39
           - 40
+          - 41
         exclude:
           - fedora_version: 39
             kernel_flavor: asus

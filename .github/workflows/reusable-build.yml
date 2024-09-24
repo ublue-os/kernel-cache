@@ -91,6 +91,7 @@ jobs:
               echo "Querying koji for ${coreos_version} kernel: $kernel_version"
               echo "$URL"
               HTTP_RESP=$(curl -sI "$URL" | grep ^HTTP)
+              linux=""
               if grep -qv "200 OK" <<< "${HTTP_RESP}"; then
                 echo "Koji failed to find $coreos_version kernel: $kernel_version"
                 case "$kernel_rel_part" in

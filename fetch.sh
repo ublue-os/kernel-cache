@@ -93,6 +93,7 @@ openssl x509 -in /tmp/certs/public_key.der -out /tmp/certs/public_key.crt
 install -Dm644 /tmp/certs/public_key.crt "$PUBLIC_KEY_PATH"
 install -Dm644 /tmp/certs/private_key.priv "$PRIVATE_KEY_PATH"
 
+ls -la /
 if [[ "${kernel_flavor}" =~ asus|fsync|fsync-ba ]]; then
     dnf install -y \
         /kernel-"$kernel_version".rpm \

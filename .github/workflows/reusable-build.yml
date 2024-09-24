@@ -69,6 +69,7 @@ jobs:
           attempt_limit: 3
           attempt_delay: 15000
           command: |
+            set -euox pipefail
             if [[ ${{ matrix.kernel_flavor }} =~ asus|fsync|fsync-ba|surface ]]; then
               container_name="fq-$(uuidgen)"
               dnf="podman exec $container_name dnf"

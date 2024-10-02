@@ -37,6 +37,7 @@ jobs:
         fedora_version:
           - 39
           - 40
+          - 41
         exclude:
           - fedora_version: 39
             kernel_flavor: asus
@@ -46,6 +47,16 @@ jobs:
             kernel_flavor: fsync
           - fedora_version: 39
             kernel_flavor: fsync-ba
+          - fedora_version: 41
+            kernel_flavor: fsync
+          - fedora_version: 41
+            kernel_flavor: fsync-ba
+          - fedora_version: 41
+            kernel_flavor: coreos-stable
+          - fedora_version: 41
+            kernel_flavor: coreos-testing
+          - fedora_version: 41
+            kernel_flavor: surface
 
     steps:
       - name: Checkout Push to Registry action
@@ -89,6 +100,7 @@ jobs:
               echo "Querying koji for ${coreos_version} kernel: $kernel_version"
               echo "$URL"
               HTTP_RESP=$(curl -sI "$URL" | grep ^HTTP)
+              linux=""
               if grep -qv "200 OK" <<< "${HTTP_RESP}"; then
                 echo "Koji failed to find $coreos_version kernel: $kernel_version"
                 case "$kernel_rel_part" in

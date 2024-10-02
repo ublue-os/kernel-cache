@@ -156,7 +156,7 @@ fi
 
 # Rebuild RPMs and Verify
 if [[ "${kernel_flavor}" =~ surface ]]; then
-    rpmrebuild --batch kernel-surface-core-"${kernel_version}"
+    rpmrebuild --additional=--noprep --batch kernel-surface-core-"${kernel_version}"
     rm -f /usr/lib/modules/"${kernel_version}"/vmlinuz
     dnf reinstall -y \
         /kernel-surface-"$kernel_version".rpm \
@@ -165,7 +165,7 @@ if [[ "${kernel_flavor}" =~ surface ]]; then
         /kernel-surface-modules-extra-"$kernel_version".rpm \
         /root/rpmbuild/RPMS/"$(uname -m)"/kernel-*.rpm
 else
-    rpmrebuild --batch kernel-core-"${kernel_version}"
+    rpmrebuild --additional=--noprep --batch kernel-core-"${kernel_version}"
     rm -f /usr/lib/modules/"${kernel_version}"/vmlinuz
     dnf reinstall -y \
         /kernel-"$kernel_version".rpm \

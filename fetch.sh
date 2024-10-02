@@ -154,9 +154,11 @@ if [[ ${DUAL_SIGN:-} == "true" ]]; then
     rm -f "$SECOND_PRIVATE_KEY_PATH" "$SECOND_PUBLIC_KEY_PATH"
 fi
 
+ln -s / /tmp/buildroot
+
 # Rebuild RPMs and Verify
 if [[ "${kernel_flavor}" =~ surface ]]; then
-    rpmrebuild --additional=--noprep --batch kernel-surface-core-"${kernel_version}"
+    rpmrebuild --additional=--buildroot=/tmp/buildroot --batch kernel-surface-core-"${kernel_version}"
     rm -f /usr/lib/modules/"${kernel_version}"/vmlinuz
     dnf reinstall -y \
         /kernel-surface-"$kernel_version".rpm \
@@ -165,7 +167,7 @@ if [[ "${kernel_flavor}" =~ surface ]]; then
         /kernel-surface-modules-extra-"$kernel_version".rpm \
         /root/rpmbuild/RPMS/"$(uname -m)"/kernel-*.rpm
 else
-    rpmrebuild --additional=--noprep --batch kernel-core-"${kernel_version}"
+    rpmrebuild --additional=--buildroot=/tmp/buildroot --batch kernel-core-"${kernel_version}"
     rm -f /usr/lib/modules/"${kernel_version}"/vmlinuz
     dnf reinstall -y \
         /kernel-"$kernel_version".rpm \

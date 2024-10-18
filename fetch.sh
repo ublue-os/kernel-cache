@@ -4,7 +4,7 @@ set -eoux pipefail
 
 kernel_version="${KERNEL_VERSION}"
 kernel_flavor="${KERNEL_FLAVOR}"
-build_tag="${KERNEL_BUILD_TAG}"
+build_tag="${KERNEL_BUILD_TAG:-latest}"
 
 # CoreOS pool repo
 # curl -LsSf -o /etc/yum.repos.d/fedora-coreos-pool.repo \
@@ -28,6 +28,8 @@ case "$kernel_flavor" in
     "coreos-stable")
         ;;
     "coreos-testing")
+        ;;
+    "bazzite")
         ;;
     "main")
         ;;
@@ -67,6 +69,7 @@ elif [[ "${kernel_flavor}" == "bazzite" ]]; then
     curl -LO https://github.com/hhd-dev/kernel-bazzite/releases/download/"$build_tag"/kernel-devel-"$kernel_version".rpm
     curl -LO https://github.com/hhd-dev/kernel-bazzite/releases/download/"$build_tag"/kernel-devel-matched-"$kernel_version".rpm
     curl -LO https://github.com/hhd-dev/kernel-bazzite/releases/download/"$build_tag"/kernel-uki-virt-"$kernel_version".rpm
+    # curl -LO https://github.com/hhd-dev/kernel-bazzite/releases/download/"$build_tag"/kernel-uki-virt-addons-"$kernel_version".rpm
 else
     KERNEL_MAJOR_MINOR_PATCH=$(echo "$kernel_version" | cut -d '-' -f 1)
     KERNEL_RELEASE="$(echo "$kernel_version" | cut -d - -f 2 | cut -d . -f 1).$(echo "$kernel_version" | cut -d - -f 2 | cut -d . -f 2)"

@@ -63,6 +63,7 @@ elif [[ "${kernel_flavor}" == "surface" ]]; then
 elif [[ "${kernel_flavor}" == "bazzite" ]]; then
     # Using curl for bazzite release
     curl -LO https://github.com/hhd-dev/kernel-bazzite/releases/download/"$build_tag"/kernel-"$kernel_version".rpm
+    curl -LO https://github.com/hhd-dev/kernel-bazzite/releases/download/"$build_tag"/kernel-core-"$kernel_version".rpm
     curl -LO https://github.com/hhd-dev/kernel-bazzite/releases/download/"$build_tag"/kernel-modules-"$kernel_version".rpm
     curl -LO https://github.com/hhd-dev/kernel-bazzite/releases/download/"$build_tag"/kernel-modules-core-"$kernel_version".rpm
     curl -LO https://github.com/hhd-dev/kernel-bazzite/releases/download/"$build_tag"/kernel-modules-extra-"$kernel_version".rpm

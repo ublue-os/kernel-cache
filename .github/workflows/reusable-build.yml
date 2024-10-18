@@ -30,6 +30,7 @@ jobs:
           - asus
           - fsync
           - fsync-ba
+          - bazzite
           - surface
           - main
           - coreos-stable
@@ -51,6 +52,8 @@ jobs:
             kernel_flavor: fsync
           - fedora_version: 41
             kernel_flavor: fsync-ba
+          - fedora_version: 39
+            kernel_flavor: bazzite
           - fedora_version: 41
             kernel_flavor: coreos-stable
           - fedora_version: 41
@@ -144,6 +147,11 @@ jobs:
                 $dnf copr enable -y sentry/kernel-ba
                 linux=$($dnf repoquery --repoid copr:copr.fedorainfracloud.org:sentry:kernel-ba --whatprovides kernel | sort -V | tail -n1 | sed 's/.*://')
                 ;;
+              "bazzite")
+                latest="$(curl "https://api.github.com/repos/hhd-dev/kernel-bazzite/releases/latest" )"
+                linux=$(echo -E "$latest" | jq -r '.assets[].name' | grep -E 'kernel-.*.rpm' | grep "fc${{ matrix.fedora_version }}" | head -1 | sed "s/kernel-//g" | sed "s/.rpm//g" )
+                build_tag=$(echo -E $latest | jq -r '.tag_name')
+                ;;
               "surface")
                 $dnf config-manager --add-repo=https://pkg.surfacelinux.com/fedora/linux-surface.repo
                 linux=$($dnf repoquery --repoid linux-surface --whatprovides kernel-surface | sort -V | tail -n1 | sed 's/.*://')
@@ -171,6 +179,7 @@ jobs:
               kernel_major_minor_patch="${major}.${minor}.${patch}"
               echo "Kernel Version is ${linux}"
               echo "kernel_release=${linux}" >> $GITHUB_ENV
+              echo "kernel_build_tag=${build_tag}" >> $GITHUB_ENV
               echo "kernel_major_minor_patch=${kernel_major_minor_patch}" >> $GITHUB_ENV
 
       - name: Generate Tags
@@ -253,6 +262,7 @@ jobs:
           build-args: |
             FEDORA_VERSION=${{ matrix.fedora_version }}
             KERNEL_VERSION=${{ env.kernel_release }}
+            KERNEL_BUILD_TAG=${{ env.kernel_build_tag }}
             KERNEL_FLAVOR=${{ matrix.kernel_flavor }}
             DUAL_SIGN=true
           labels: ${{ steps.meta.outputs.labels }}

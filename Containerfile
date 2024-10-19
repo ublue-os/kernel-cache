@@ -7,6 +7,7 @@ ARG KERNEL_VERSION="${:-6.8.11-300.fc40.x86_64}"
 ARG FEDORA_VERSION="${FEDORA_VERSION:-40}"
 ARG KERNEL_FLAVOR="${:-coreos-stable}"
 ARG DUAL_SIGN="${:-true}"
+ARG KERNEL_BUILD_TAG="${:-}"
 
 COPY fetch.sh /tmp
 COPY certs /tmp/certs

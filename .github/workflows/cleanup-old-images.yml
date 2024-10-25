@@ -22,4 +22,3 @@ jobs:
           delete-orphaned-images: true
           keep-n-tagged: 7
           keep-n-untagged: 7
-          dry-run: true

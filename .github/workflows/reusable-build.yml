@@ -56,7 +56,7 @@ jobs:
             kernel_flavor: bazzite
           - fedora_version: 41
             kernel_flavor: coreos-stable
-          - fedora_version: 41
+          - fedora_version: 40
             kernel_flavor: coreos-testing
           - fedora_version: 41
             kernel_flavor: surface

@@ -7,6 +7,8 @@ on:
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - '.github/workflows/cleanup*.yml'
 
 env:
   IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}

@@ -7,6 +7,8 @@ on:
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - '.github/workflows/cleanup*.yml'
 
 env:
   IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
@@ -54,9 +56,11 @@ jobs:
             kernel_flavor: fsync-ba
           - fedora_version: 39
             kernel_flavor: bazzite
+          - fedora_version: 40
+            kernel_flavor: bazzite
           - fedora_version: 41
             kernel_flavor: coreos-stable
-          - fedora_version: 41
+          - fedora_version: 40
             kernel_flavor: coreos-testing
 
     steps:
@@ -148,7 +152,7 @@ jobs:
                 ;;
               "bazzite")
                 latest="$(curl "https://api.github.com/repos/hhd-dev/kernel-bazzite/releases/latest" )"
-                linux=$(echo -E "$latest" | jq -r '.assets[].name' | grep -E 'kernel-.*.rpm' | grep "fc${{ matrix.fedora_version }}" | head -1 | sed "s/kernel-//g" | sed "s/.rpm//g" )
+                linux=$(echo -E "$latest" | jq -r '.assets[].name' | grep -E 'kernel-.*.rpm' | grep "fc${{ matrix.fedora_version }}.x86_64" | head -1 | sed "s/kernel-//g" | sed "s/.rpm//g" )
                 build_tag=$(echo -E $latest | jq -r '.tag_name')
                 ;;
               "surface")
@@ -333,7 +337,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # Sign container
-      - uses: sigstore/cosign-installer@v3.6.0
+      - uses: sigstore/cosign-installer@v3.7.0
         if: github.event_name != 'pull_request'
 
       - name: Sign container image

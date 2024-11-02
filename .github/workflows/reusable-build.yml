@@ -153,7 +153,7 @@ jobs:
                 ;;
               "bazzite")
                 latest="$(curl "https://api.github.com/repos/hhd-dev/kernel-bazzite/releases/latest" )"
-                linux=$(echo -E "$latest" | jq -r '.assets[].name' | grep -E 'kernel-.*.rpm' | grep "fc${{ matrix.fedora_version }}" | head -1 | sed "s/kernel-//g" | sed "s/.rpm//g" )
+                linux=$(echo -E "$latest" | jq -r '.assets[].name' | grep -E 'kernel-.*.rpm' | grep "fc${{ matrix.fedora_version }}.x86_64" | head -1 | sed "s/kernel-//g" | sed "s/.rpm//g" )
                 build_tag=$(echo -E $latest | jq -r '.tag_name')
                 ;;
               "surface")

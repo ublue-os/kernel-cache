@@ -99,7 +99,7 @@ jobs:
               image_linux=$(skopeo inspect docker://quay.io/fedora/fedora-coreos:${coreos_version} | jq -r '.Labels["ostree.linux"]')
               # Gross Pin... But workaround coreos-stable being on a broken kernel...
               if [[ "${{ matrix.kernel_flavor }}" == "coreos-stable" ]]; then
-                image_linux=6.11.3-300.fc41.x86_64
+                image_linux="6.11.3-300.fc41.x86_64"
               fi
               major_minor_patch=$(echo $image_linux | grep -oP '^\d+\.\d+\.\d+')
               kernel_rel_part=$(echo $image_linux | grep -oP '^\d+\.\d+\.\d+\-\K([123][0]{2})')

@@ -49,8 +49,6 @@ jobs:
             kernel_flavor: bazzite
           - fedora_version: 40
             kernel_flavor: coreos-testing
-          - fedora_version: 41
-            kernel_flavor: surface
 
     steps:
       - name: Checkout Push to Registry action
@@ -76,6 +74,7 @@ jobs:
             if [[ ${{ matrix.kernel_flavor }} =~ asus|fsync|fsync-ba|surface ]]; then
               container_name="fq-$(uuidgen)"
               dnf="podman exec $container_name dnf"
+              curl="podman exec $container_name curl"
 
               podman run --entrypoint /bin/bash --name "$container_name" -dt "${{ env.build_image }}"
               $dnf install -y dnf-plugins-core
@@ -148,7 +147,7 @@ jobs:
                 build_tag=$(echo -E $latest | jq -r '.tag_name')
                 ;;
               "surface")
-                $dnf config-manager --add-repo=https://pkg.surfacelinux.com/fedora/linux-surface.repo
+                $curl -o /etc/yum.repos.d/linux-surface.repo https://pkg.surfacelinux.com/fedora/linux-surface.repo
                 linux=$($dnf repoquery --repoid linux-surface --whatprovides kernel-surface | sort -V | tail -n1 | sed 's/.*://')
                 ;;
               "main")

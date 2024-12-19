@@ -2,7 +2,8 @@ name: Cache Kernels
 on:
   merge_group:
   schedule:
-    - cron: "5 0 * * *" # 0005 UTC everyday
+    - cron: "5 0 * * *" # 0005 UTC everyday    
+    - cron: "35 3 * * *" # 3:35 UTC daily 
   workflow_dispatch:
   pull_request:
     branches:

@@ -152,7 +152,7 @@ jobs:
                 linux=$($dnf repoquery --repoid linux-surface --whatprovides kernel-surface | sort -V | tail -n1 | sed 's/.*://')
                 ;;
               "main")
-                linux=$(skopeo inspect docker://quay.io/fedora-ostree-desktops/base:${{ matrix.fedora_version }} | jq -r '.Labels["ostree.linux"]' )
+                linux=$(skopeo inspect docker://quay.io/fedora-ostree-desktops/base-atomic:${{ matrix.fedora_version }} | jq -r '.Labels["ostree.linux"]' )
                 ;;
               "coreos-stable")
                 coreos_kernel stable

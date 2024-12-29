@@ -26,7 +26,7 @@ case "$kernel_flavor" in
        if [[ "$(rpm -E %fedora)" -lt 41 ]]; then
                 dnf config-manager --add-repo=https://pkg.surfacelinux.com/fedora/linux-surface.repo
                 else
-                dnf config-manager addrepo --repofile=https://pkg.surfacelinux.com/fedora/linux-surface.repo
+                dnf config-manager addrepo --from-repofile=https://pkg.surfacelinux.com/fedora/linux-surface.repo
         fi
         ;;
     "coreos-stable")

@@ -49,8 +49,6 @@ jobs:
             kernel_flavor: bazzite
           - fedora_version: 40
             kernel_flavor: coreos-testing
-          - fedora_version: 41
-            kernel_flavor: surface
 
     steps:
       - name: Checkout Push to Registry action

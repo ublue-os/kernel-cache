@@ -23,7 +23,11 @@ case "$kernel_flavor" in
         dnf copr enable -y sentry/kernel-ba
         ;;
     "surface")
-        dnf config-manager --add-repo=https://pkg.surfacelinux.com/fedora/linux-surface.repo
+       if [[ "$(rpm -E %fedora)" -lt 41 ]]; then
+                dnf config-manager --add-repo=https://pkg.surfacelinux.com/fedora/linux-surface.repo
+                else
+                dnf config-manager addrepo --from-repofile=https://pkg.surfacelinux.com/fedora/linux-surface.repo
+        fi
         ;;
     "coreos-stable")
         ;;

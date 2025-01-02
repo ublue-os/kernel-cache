@@ -41,6 +41,8 @@ jobs:
           - 40
           - 41
         exclude:
+          - fedora_version: 40
+            kernel_flavor: asus
           - fedora_version: 41
             kernel_flavor: fsync
           - fedora_version: 41
@@ -49,8 +51,6 @@ jobs:
             kernel_flavor: bazzite
           - fedora_version: 40
             kernel_flavor: coreos-testing
-          - fedora_version: 41
-            kernel_flavor: surface
 
     steps:
       - name: Checkout Push to Registry action
@@ -148,8 +148,13 @@ jobs:
                 build_tag=$(echo -E $latest | jq -r '.tag_name')
                 ;;
               "surface")
+                if [[ "${{ matrix.fedora_version }}" < 41 ]]; then
                 $dnf config-manager --add-repo=https://pkg.surfacelinux.com/fedora/linux-surface.repo
+                else
+                $dnf config-manager addrepo --from-repofile=https://pkg.surfacelinux.com/fedora/linux-surface.repo
+                fi
                 linux=$($dnf repoquery --repoid linux-surface --whatprovides kernel-surface | sort -V | tail -n1 | sed 's/.*://')
+
                 ;;
               "main")
                 base_image_name="base"

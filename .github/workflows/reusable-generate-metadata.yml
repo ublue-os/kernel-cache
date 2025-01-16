@@ -1,0 +1,209 @@
+name: Generate Metadata
+
+on:
+  workflow_call:
+    inputs:
+      fedora-version:
+        description: "The version of Fedora to build"
+        required: true
+        type: string
+      image-registry:
+        description: "The registry to push the image to"
+        required: true
+        type: string
+      image-name:
+        description: "The name of the image to build"
+        required: true
+        type: string
+      kernel-flavor:
+        description: "The kernel to build"
+        required: true
+        type: string
+      is-latest:
+        description: "Is this the latest version"
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      image-registry:
+        description: "The registry to push the image to"
+        value: ${{ jobs.generate_metadata.outputs.image-registry }}
+      image-name:
+        description: "The name of the image to build"
+        value: ${{ jobs.generate_metadata.outputs.image-name }}
+      build-args:
+        description: "The build arguments to pass to the build"
+        value: ${{ jobs.generate_metadata.outputs.build-args }}
+      tags:
+        description: "The tags to apply to the image"
+        value: ${{ jobs.generate_metadata.outputs.tags }}
+
+jobs:
+  generate_metadata:
+    runs-on: ubuntu-latest
+    outputs:
+      image-registry: ${{ inputs.image-registry }}
+      image-name: ${{ inputs.image-name }}
+      build-args: ${{ steps.set-metadata.outputs.BUILD_ARGS }}
+      tags: ${{ steps.set-metadata.outputs.TAGS }}
+    steps:
+      - name: Get Kernel Version
+        id: Version
+        uses: Wandalen/wretry.action@v3.7.3
+        with:
+          attempt_limit: 3
+          attempt_delay: 15000
+          command: |
+            if [[ ${{ input.kernel-flavor }} =~ asus|fsync|fsync-ba|surface ]]; then
+              container_name="fq-$(uuidgen)"
+              dnf="podman exec $container_name dnf"
+
+              podman run --entrypoint /bin/bash --name "$container_name" -dt "${{ env.build_image }}"
+              $dnf install -y dnf-plugins-core
+            fi
+
+            coreos_kernel () {
+              coreos_version=${1}
+              image_linux=$(skopeo inspect docker://quay.io/fedora/fedora-coreos:${coreos_version} | jq -r '.Labels["ostree.linux"]')
+              # Pin a kernel here, gross workaround TODO: Make this cleaner
+              # if [[ "${{ input.kernel-flavor }}" == "coreos-stable" ]]; then
+              #    image_linux="6.11.3-300.fc41.x86_64"
+              # fi
+              major_minor_patch=$(echo $image_linux | grep -oP '^\d+\.\d+\.\d+')
+              kernel_rel_part=$(echo $image_linux | grep -oP '^\d+\.\d+\.\d+\-\K([123][0]{2})')
+              arch=$(echo $image_linux | grep -oP 'fc\d+\.\K.*$')
+
+              kernel_rel="$kernel_rel_part.fc${{ input.fedora-version }}"
+              kernel_version="$major_minor_patch-$kernel_rel.$arch"
+              URL="https://kojipkgs.fedoraproject.org/packages/kernel/"$major_minor_patch"/"$kernel_rel"/"$arch"/kernel-"$kernel_version".rpm"
+              echo "Querying koji for ${coreos_version} kernel: $kernel_version"
+              echo "$URL"
+              HTTP_RESP=$(curl -sI "$URL" | grep ^HTTP)
+              linux=""
+              if grep -qv "200 OK" <<< "${HTTP_RESP}"; then
+                echo "Koji failed to find $coreos_version kernel: $kernel_version"
+                case "$kernel_rel_part" in
+                  "300")
+                    kernel_rel_part="200"
+                    ;;
+                  "200")
+                    kernel_rel_part="100"
+                    ;;
+                  "100")
+                    ;;
+                  *)
+                    echo "unexpected kernel_rel_part ${kernel_rel_part}"
+                    ;;
+                esac
+                kernel_rel="$kernel_rel_part.fc${{ inputs.fedora-version }}"
+                kernel_version="$major_minor_patch-$kernel_rel.$arch"
+                URL="https://kojipkgs.fedoraproject.org/packages/kernel/"$major_minor_patch"/"$kernel_rel"/"$arch"/kernel-"$kernel_version".rpm"
+                echo "Re-querying koji for ${coreos_version} kernel: $kernel_version"
+                echo "$URL"
+                HTTP_RESP=$(curl -sI "$URL" | grep ^HTTP)
+                if grep -qv "200 OK" <<< "${HTTP_RESP}"; then
+                  echo "Koji failed to find $coreos_version kernel: $kernel_version"
+                fi
+              fi
+              if grep -q "200 OK" <<< "${HTTP_RESP}"; then
+                linux=$kernel_version
+              fi
+            }
+
+            case ${{ inputs.kernel-flavor }} in
+              "asus")
+                $dnf copr enable -y lukenukem/asus-kernel
+                linux=$($dnf repoquery --repoid copr:copr.fedorainfracloud.org:lukenukem:asus-kernel --whatprovides kernel | sort -V | tail -n1 | sed 's/.*://')
+                ;;
+              "fsync")
+                $dnf copr enable -y sentry/kernel-fsync
+                linux=$($dnf repoquery --repoid copr:copr.fedorainfracloud.org:sentry:kernel-fsync --whatprovides kernel | sort -V | tail -n1 | sed 's/.*://')
+                ;;
+              "fsync-ba")
+                $dnf copr enable -y sentry/kernel-ba
+                linux=$($dnf repoquery --repoid copr:copr.fedorainfracloud.org:sentry:kernel-ba --whatprovides kernel | sort -V | tail -n1 | sed 's/.*://')
+                ;;
+              "bazzite")
+                latest="$(curl "https://api.github.com/repos/hhd-dev/kernel-bazzite/releases/latest" )"
+                linux=$(echo -E "$latest" | jq -r '.assets[].name' | grep -E 'kernel-.*.rpm' | grep "fc${{ inputs.fedora-version }}.x86_64" | head -1 | sed "s/kernel-//g" | sed "s/.rpm//g" )
+                build_tag=$(echo -E $latest | jq -r '.tag_name')
+                ;;
+              "surface")
+                if [[ "${{ inputs.fedora-version }}" < 41 ]]; then
+                $dnf config-manager --add-repo=https://pkg.surfacelinux.com/fedora/linux-surface.repo
+                else
+                $dnf config-manager addrepo --from-repofile=https://pkg.surfacelinux.com/fedora/linux-surface.repo
+                fi
+                linux=$($dnf repoquery --repoid linux-surface --whatprovides kernel-surface | sort -V | tail -n1 | sed 's/.*://')
+
+                ;;
+              "main")
+                base_image_name="base"
+                if [[ ${{ inputs.fedora-version }} > 40 ]]; then
+                  base_image_name+="-atomic"
+                fi
+                linux=$(skopeo inspect docker://quay.io/fedora-ostree-desktops/$base_image_name:${{ inputs.fedora-version }} | jq -r '.Labels["ostree.linux"]' )
+                ;;
+              "coreos-stable")
+                coreos_kernel stable
+                ;;
+              "coreos-testing")
+                coreos_kernel testing
+                ;;
+              *)
+                echo "unexpected kernel_flavor '${{ inputs.kernel-flavor }}' for query"
+                ;;
+              esac
+              if [ -z "$linux" ] || [ "null" = "$linux" ]; then
+                echo "inspected image linux version must not be empty or null"
+                exit 1
+              fi
+              major=$(echo "$linux" | cut -d '.' -f 1)
+              minor=$(echo "$linux" | cut -d '.' -f 2)
+              patch=$(echo "$linux" | cut -d '.' -f 3)
+              kernel_major_minor_patch="${major}.${minor}.${patch}"
+              echo "Kernel Version is ${linux}"
+              echo "kernel_release=${linux}" >> $GITHUB_ENV
+              echo "kernel_build_tag=${build_tag}" >> $GITHUB_ENV
+              echo "kernel_major_minor_patch=${kernel_major_minor_patch}" >> $GITHUB_ENV
+
+      - name: Generate Tags
+        id: generate-tags
+        run: |
+          tag="${{ env.kernel_release }}"
+          short_tag=$(echo ${{ env.kernel_major_minor_patch  }} | cut -d "-" -f 1)
+
+          BUILD_TAGS=()
+          BUILD_TAGS+=("${{ inputs.fedora-version }}")
+          BUILD_TAGS+=(${{ inputs.fedora-version }}-${short_tag})
+          BUILD_TAGS+=(${{ inputs.fedora-version }}-${tag})
+          BUILD_TAGS+=(${tag})
+          
+          alias_tags=("${BUILD_TAGS[@]}")
+
+          echo "Generated the following tags: "
+          for TAG in "${alias_tags[@]}"; do
+              echo "${TAG}"
+          done
+
+          echo "TAGS=$(IFS=,; echo "${alias_tags[*]}")" >> $GITHUB_ENV
+          echo "date=$(date '+%Y%m%d.0')" >> $GITHUB_ENV
+
+      - name: Generate Build Args
+        id: generate-build-args
+        run: |
+          BUILD_ARGS=()
+
+          BUILD_ARGS+=("FEDORA_VERSION=${inputs.fedora-version}")
+          BUILD_ARGS+=("KERNEL_VERSION=${{ env.kernel_release }}")
+          BUILD_ARGS+=("KERNEL_BUILD_TAG=$${{ env.kernel_build_tag }}")
+          BUILD_ARGS+=("KERNEL_FLAVOR=${{ matrix.kernel_flavor }}")
+          BUILD_ARGS+=("DUAL_SIGN=true")
+
+          echo "BUILD_ARGS=$(IFS=,; echo "${BUILD_ARGS[*]}")" >> $GITHUB_ENV
+
+      - name: Set Metadata
+        id: set-metadata
+        run: |
+          echo "BUILD_ARGS=${{ env.BUILD_ARGS }}" >> $GITHUB_OUTPUT
+          echo "TAGS=${{ env.TAGS }}" >> $GITHUB_OUTPUT

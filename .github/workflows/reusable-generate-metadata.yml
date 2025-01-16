@@ -58,7 +58,7 @@ jobs:
               container_name="fq-$(uuidgen)"
               dnf="podman exec $container_name dnf"
 
-              podman run --entrypoint /bin/bash --name "$container_name" -dt "${{ env.build_image }}"
+              podman run --entrypoint /bin/bash --name "$container_name" -dt "quay.io/fedora/fedora:${{ inputs.fedora-version }}"
               $dnf install -y dnf-plugins-core
             fi
 

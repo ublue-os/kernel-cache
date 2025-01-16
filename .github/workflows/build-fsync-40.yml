@@ -8,6 +8,7 @@ jobs:
     uses: ./.github/workflows/reusable-generate-metadata.yml
     with:
       fedora-version: 40
+      kernel-flavor: fsync
       image-registry: ghcr.io/ublue-os
       image-name: multiarch-test-fsync-kernel
 

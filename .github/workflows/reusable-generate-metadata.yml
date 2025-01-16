@@ -194,7 +194,7 @@ jobs:
         run: |
           BUILD_ARGS=()
 
-          BUILD_ARGS+=("FEDORA_VERSION=${inputs.fedora-version}")
+          BUILD_ARGS+=("FEDORA_VERSION=${{ inputs.fedora-version }}")
           BUILD_ARGS+=("KERNEL_VERSION=${{ env.kernel_release }}")
           BUILD_ARGS+=("KERNEL_BUILD_TAG=$${{ env.kernel_build_tag }}")
           BUILD_ARGS+=("KERNEL_FLAVOR=${{ matrix.kernel_flavor }}")

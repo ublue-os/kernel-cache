@@ -1,4 +1,4 @@
-name: x86_64
+name: build-kernel
 on:
   merge_group:
   schedule:
@@ -14,11 +14,11 @@ env:
   IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
 
 jobs:
-  build-x86_64:
+  build:
     uses: ./.github/workflows/reusable-build.yml
     secrets: inherit
     with:
-      platform: x86_64
+      platform: ${{ matrix.platform }}
       kernel_flavor: ${{ matrix.kernel_flavor }}
       fedora_version: ${{ matrix.fedora_version }}
     strategy:
@@ -36,6 +36,9 @@ jobs:
         fedora_version:
           - 40
           - 41
+        platform:
+          - x86_64
+          - aarch64
         exclude:
           - fedora_version: 40
             kernel_flavor: asus
@@ -47,3 +50,11 @@ jobs:
             kernel_flavor: bazzite
           - fedora_version: 40
             kernel_flavor: coreos-testing
+          - kernel_flavor: asus
+            platform: aarch64
+          - kernel_flavor: fsync
+            platform: aarch64
+          - kernel_flavor: fsync-ba
+            platform: aarch64
+          - kernel_flavor: surface
+            platform: aarch64

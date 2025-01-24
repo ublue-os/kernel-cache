@@ -1,20 +1,25 @@
 name: Cache Kernels
 on:
-  merge_group:
-  schedule:
-    - cron: "5 0 * * *" # 0005 UTC everyday
-  workflow_dispatch:
-  pull_request:
-    branches:
-      - main
-    paths-ignore:
-      - '.github/workflows/cleanup*.yml'
+  workflow_call:
+    inputs:
+      platform:
+        description: 'Platform to build for e.g. x86_64, aarch64'
+        required: true
+        type: string
+      kernel_flavor:
+        description: 'Kernel flavor to build e.g. main, bazzite, surface etc.'
+        required: true
+        type: string
+      fedora_version:
+        description: 'Fedora release version number e.g. 40, 41 etc'
+        required: true
+        type: string
 
 env:
   IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}-${{ inputs.platform }}-${{ inputs.kernel_flavor }}-${{ inputs.fedora_version }}
   cancel-in-progress: true
 
 jobs:
@@ -25,32 +30,6 @@ jobs:
       contents: read
       packages: write
       id-token: write
-    strategy:
-      fail-fast: false
-      matrix:
-        kernel_flavor:
-          - asus
-          - fsync
-          - fsync-ba
-          - bazzite
-          - surface
-          - main
-          - coreos-stable
-          - coreos-testing
-        fedora_version:
-          - 40
-          - 41
-        exclude:
-          - fedora_version: 40
-            kernel_flavor: asus
-          - fedora_version: 41
-            kernel_flavor: fsync
-          - fedora_version: 41
-            kernel_flavor: fsync-ba
-          - fedora_version: 40
-            kernel_flavor: bazzite
-          - fedora_version: 40
-            kernel_flavor: coreos-testing
 
     steps:
       - name: Checkout Push to Registry action
@@ -62,7 +41,7 @@ jobs:
           attempt_limit: 3
           attempt_delay: 15000
           command: |
-            build_image="quay.io/fedora/fedora:${{ matrix.fedora_version }}"
+            build_image="quay.io/fedora/fedora:${{ inputs.fedora_version }}"
             echo "build_image=$build_image" >> "$GITHUB_ENV"
             podman pull "$build_image"
 
@@ -73,7 +52,7 @@ jobs:
           attempt_limit: 3
           attempt_delay: 15000
           command: |
-            if [[ ${{ matrix.kernel_flavor }} =~ asus|fsync|fsync-ba|surface ]]; then
+            if [[ ${{ inputs.kernel_flavor }} =~ asus|fsync|fsync-ba|surface ]]; then
               container_name="fq-$(uuidgen)"
               dnf="podman exec $container_name dnf"
 
@@ -85,14 +64,14 @@ jobs:
               coreos_version=${1}
               image_linux=$(skopeo inspect docker://quay.io/fedora/fedora-coreos:${coreos_version} | jq -r '.Labels["ostree.linux"]')
               # Pin a kernel here, gross workaround TODO: Make this cleaner
-              # if [[ "${{ matrix.kernel_flavor }}" == "coreos-stable" ]]; then
+              # if [[ "${{ inputs.kernel_flavor }}" == "coreos-stable" ]]; then
               #    image_linux="6.11.3-300.fc41.x86_64"
               # fi
               major_minor_patch=$(echo $image_linux | grep -oP '^\d+\.\d+\.\d+')
               kernel_rel_part=$(echo $image_linux | grep -oP '^\d+\.\d+\.\d+\-\K([123][0]{2})')
               arch=$(echo $image_linux | grep -oP 'fc\d+\.\K.*$')
 
-              kernel_rel="$kernel_rel_part.fc${{ matrix.fedora_version }}"
+              kernel_rel="$kernel_rel_part.fc${{ inputs.fedora_version }}"
               kernel_version="$major_minor_patch-$kernel_rel.$arch"
               URL="https://kojipkgs.fedoraproject.org/packages/kernel/"$major_minor_patch"/"$kernel_rel"/"$arch"/kernel-"$kernel_version".rpm"
               echo "Querying koji for ${coreos_version} kernel: $kernel_version"
@@ -114,7 +93,7 @@ jobs:
                     echo "unexpected kernel_rel_part ${kernel_rel_part}"
                     ;;
                 esac
-                kernel_rel="$kernel_rel_part.fc${{ matrix.fedora_version }}"
+                kernel_rel="$kernel_rel_part.fc${{ inputs.fedora_version }}"
                 kernel_version="$major_minor_patch-$kernel_rel.$arch"
                 URL="https://kojipkgs.fedoraproject.org/packages/kernel/"$major_minor_patch"/"$kernel_rel"/"$arch"/kernel-"$kernel_version".rpm"
                 echo "Re-querying koji for ${coreos_version} kernel: $kernel_version"
@@ -129,7 +108,7 @@ jobs:
               fi
             }
 
-            case ${{ matrix.kernel_flavor }} in
+            case ${{ inputs.kernel_flavor }} in
               "asus")
                 $dnf copr enable -y lukenukem/asus-kernel
                 linux=$($dnf repoquery --repoid copr:copr.fedorainfracloud.org:lukenukem:asus-kernel --whatprovides kernel | sort -V | tail -n1 | sed 's/.*://')
@@ -144,11 +123,11 @@ jobs:
                 ;;
               "bazzite")
                 latest="$(curl "https://api.github.com/repos/hhd-dev/kernel-bazzite/releases/latest" )"
-                linux=$(echo -E "$latest" | jq -r '.assets[].name' | grep -E 'kernel-.*.rpm' | grep "fc${{ matrix.fedora_version }}.x86_64" | head -1 | sed "s/kernel-//g" | sed "s/.rpm//g" )
+                linux=$(echo -E "$latest" | jq -r '.assets[].name' | grep -E 'kernel-.*.rpm' | grep "fc${{ inputs.fedora_version }}.${{ inputs.platform }}" | head -1 | sed "s/kernel-//g" | sed "s/.rpm//g" )
                 build_tag=$(echo -E $latest | jq -r '.tag_name')
                 ;;
               "surface")
-                if [[ "${{ matrix.fedora_version }}" < 41 ]]; then
+                if [[ "${{ inputs.fedora_version }}" < 41 ]]; then
                 $dnf config-manager --add-repo=https://pkg.surfacelinux.com/fedora/linux-surface.repo
                 else
                 $dnf config-manager addrepo --from-repofile=https://pkg.surfacelinux.com/fedora/linux-surface.repo
@@ -158,10 +137,10 @@ jobs:
                 ;;
               "main")
                 base_image_name="base"
-                if [[ ${{ matrix.fedora_version }} > 40 ]]; then
+                if [[ ${{ inputs.fedora_version }} > 40 ]]; then
                   base_image_name+="-atomic"
                 fi
-                linux=$(skopeo inspect docker://quay.io/fedora-ostree-desktops/$base_image_name:${{ matrix.fedora_version }} | jq -r '.Labels["ostree.linux"]' )
+                linux=$(skopeo inspect docker://quay.io/fedora-ostree-desktops/$base_image_name:${{ inputs.fedora_version }} | jq -r '.Labels["ostree.linux"]' )
                 ;;
               "coreos-stable")
                 coreos_kernel stable
@@ -170,7 +149,7 @@ jobs:
                 coreos_kernel testing
                 ;;
               *)
-                echo "unexpected kernel_flavor '${{ matrix.kernel_flavor }}' for query"
+                echo "unexpected kernel_flavor '${{ inputs.kernel_flavor }}' for query"
                 ;;
               esac
               if [ -z "$linux" ] || [ "null" = "$linux" ]; then
@@ -193,19 +172,19 @@ jobs:
           tag="${{ env.kernel_release }}"
           short_tag=$(echo ${{ env.kernel_major_minor_patch  }} | cut -d "-" -f 1)
           COMMIT_TAGS=()
-          COMMIT_TAGS+=("pr-${{ github.event.number }}-${{ matrix.fedora_version }}")
-          COMMIT_TAGS+=("pr-${{ github.event.number }}-${{ matrix.fedora_version }}-${short_tag}")
-          COMMIT_TAGS+=("pr-${{ github.event.number }}-${{ matrix.fedora_version }}-${tag}")
+          COMMIT_TAGS+=("pr-${{ github.event.number }}-${{ inputs.fedora_version }}")
+          COMMIT_TAGS+=("pr-${{ github.event.number }}-${{ inputs.fedora_version }}-${short_tag}")
+          COMMIT_TAGS+=("pr-${{ github.event.number }}-${{ inputs.fedora_version }}-${tag}")
           COMMIT_TAGS+=("pr-${{ github.event.number }}-${tag}")
-          COMMIT_TAGS+=("${GITHUB_SHA::7}-${{ matrix.fedora_version }}")
-          COMMIT_TAGS+=("${GITHUB_SHA::7}-${{ matrix.fedora_version }}-${short_tag}")
-          COMMIT_TAGS+=("${GITHUB_SHA::7}-${{ matrix.fedora_version }}-${tag}")
+          COMMIT_TAGS+=("${GITHUB_SHA::7}-${{ inputs.fedora_version }}")
+          COMMIT_TAGS+=("${GITHUB_SHA::7}-${{ inputs.fedora_version }}-${short_tag}")
+          COMMIT_TAGS+=("${GITHUB_SHA::7}-${{ inputs.fedora_version }}-${tag}")
           COMMIT_TAGS+=("${GITHUB_SHA::7}-${tag}")
 
           BUILD_TAGS=()
-          BUILD_TAGS+=("${{ matrix.fedora_version }}")
-          BUILD_TAGS+=(${{ matrix.fedora_version }}-${short_tag})
-          BUILD_TAGS+=(${{ matrix.fedora_version }}-${tag})
+          BUILD_TAGS+=("${{ inputs.fedora_version }}")
+          BUILD_TAGS+=(${{ inputs.fedora_version }}-${short_tag})
+          BUILD_TAGS+=(${{ inputs.fedora_version }}-${tag})
           BUILD_TAGS+=(${tag})
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
               # echo "Generated the following commit tags: "
@@ -230,10 +209,10 @@ jobs:
         id: meta
         with:
           images: |
-            ${{ matrix.kernel_flavor }}-kernel
+            ${{ inputs.kernel_flavor }}-kernel
           labels: |
-            org.opencontainers.image.title=${{ matrix.kernel_flavor }} cached kernel
-            org.opencontainers.image.description=A caching layer for kernels. Contains ${{ matrix.kernel_flavor }} kernel.
+            org.opencontainers.image.title=${{ inputs.kernel_flavor }} cached kernel
+            org.opencontainers.image.description=A caching layer for kernels. Contains ${{ inputs.kernel_flavor }} kernel.
             org.opencontainers.image.version=${{ env.kernel_release}}.${{ env.date }}
             ostree.linux=${{ env.kernel_release }}
             io.artifacthub.package.readme-url=https://raw.githubusercontent.com/${{ github.repository }}/main/README.md
@@ -261,13 +240,13 @@ jobs:
         with:
           containerfiles: |
             ./Containerfile
-          image: ${{ matrix.kernel_flavor }}-kernel
+          image: ${{ inputs.kernel_flavor }}-kernel
           tags: ${{ steps.generate_tags.outputs.alias_tags }}
           build-args: |
-            FEDORA_VERSION=${{ matrix.fedora_version }}
+            FEDORA_VERSION=${{ inputs.fedora_version }}
             KERNEL_VERSION=${{ env.kernel_release }}
             KERNEL_BUILD_TAG=${{ env.kernel_build_tag }}
-            KERNEL_FLAVOR=${{ matrix.kernel_flavor }}
+            KERNEL_FLAVOR=${{ inputs.kernel_flavor }}
             DUAL_SIGN=true
           labels: ${{ steps.meta.outputs.labels }}
           oci: false
@@ -280,11 +259,11 @@ jobs:
             sudo apt update
             sudo apt install sbsigntool curl openssl rpm2cpio
           fi
-          podman create --name "${{ matrix.kernel_flavor}}"-kernel-"$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1)" "${{ matrix.kernel_flavor}}"-kernel:$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1) sh
-          podman export "${{ matrix.kernel_flavor}}"-kernel-"$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1)" > /tmp/"${{ matrix.kernel_flavor}}"-kernel-"$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1)".tar
-          tar xvf /tmp/"${{ matrix.kernel_flavor}}"-kernel-"$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1)".tar -C /tmp
+          podman create --name "${{ inputs.kernel_flavor}}"-kernel-"$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1)" "${{ inputs.kernel_flavor}}"-kernel:$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1) sh
+          podman export "${{ inputs.kernel_flavor}}"-kernel-"$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1)" > /tmp/"${{ inputs.kernel_flavor}}"-kernel-"$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1)".tar
+          tar xvf /tmp/"${{ inputs.kernel_flavor}}"-kernel-"$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1)".tar -C /tmp
           cd /tmp/tmp/rpms/
-          if [[ "${{ matrix.kernel_flavor }}" == "surface" ]]; then
+          if [[ "${{ inputs.kernel_flavor }}" == "surface" ]]; then
             rpm2cpio kernel-surface-core-"${{ env.kernel_release }}".rpm | cpio -idmv
           else
             rpm2cpio kernel-core-"${{ env.kernel_release }}".rpm | cpio -idmv

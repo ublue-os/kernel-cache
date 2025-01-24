@@ -1,0 +1,49 @@
+name: x86_64
+on:
+  merge_group:
+  schedule:
+    - cron: "5 0 * * *" # 0005 UTC everyday
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - '.github/workflows/cleanup*.yml'
+
+env:
+  IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
+
+jobs:
+  build-x86_64:
+    uses: ./.github/workflows/reusable-build.yml
+    secrets: inherit
+    with:
+      platform: x86_64
+      kernel_flavor: ${{ matrix.kernel_flavor }}
+      fedora_version: ${{ matrix.fedora_version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        kernel_flavor:
+          - asus
+          - fsync
+          - fsync-ba
+          - bazzite
+          - surface
+          - main
+          - coreos-stable
+          - coreos-testing
+        fedora_version:
+          - 40
+          - 41
+        exclude:
+          - fedora_version: 40
+            kernel_flavor: asus
+          - fedora_version: 41
+            kernel_flavor: fsync
+          - fedora_version: 41
+            kernel_flavor: fsync-ba
+          - fedora_version: 40
+            kernel_flavor: bazzite
+          - fedora_version: 40
+            kernel_flavor: coreos-testing

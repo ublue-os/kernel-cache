@@ -25,7 +25,7 @@ concurrency:
 jobs:
   build:
     name: kernel-cache
-    runs-on: ubuntu-24.04
+    runs-on: ${{ inputs.platform == 'x86_64' && 'ubuntu-24.04' || 'ubuntu-24.04-arm' }}
     permissions:
       contents: read
       packages: write
@@ -34,6 +34,11 @@ jobs:
     steps:
       - name: Checkout Push to Registry action
         uses: actions/checkout@v4
+
+      - name: Install podman, buildah and skopeo (aarch64 only)
+        if: inputs.platform == 'aarch64'
+        id: install_container_tools
+        run: sudo apt update && sudo apt install -y podman buildah skopeo
 
       - name: Pull Image
         uses: Wandalen/wretry.action@v3.7.3
@@ -136,7 +141,7 @@ jobs:
 
                 ;;
               "main")
-                linux=$(skopeo inspect docker://quay.io/fedora/fedora-silverblue:${{ matrix.fedora_version }} | jq -r '.Labels["ostree.linux"]' )
+                linux=$(skopeo inspect docker://quay.io/fedora/fedora-silverblue:${{ inputs.fedora_version }} | jq -r '.Labels["ostree.linux"]' )
                 ;;
               "coreos-stable")
                 coreos_kernel stable

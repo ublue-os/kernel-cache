@@ -18,43 +18,48 @@ jobs:
     uses: ./.github/workflows/reusable-build.yml
     secrets: inherit
     with:
-      platform: ${{ matrix.platform }}
-      kernel_flavor: ${{ matrix.kernel_flavor }}
+      platforms: ${{ matrix.variant.platforms }}
+      kernel_flavor: ${{ matrix.variant.kernel_flavor }}
       fedora_version: ${{ matrix.fedora_version }}
     strategy:
       fail-fast: false
       matrix:
-        kernel_flavor:
-          - asus
-          - fsync
-          - fsync-ba
-          - bazzite
-          - surface
-          - main
-          - coreos-stable
-          - coreos-testing
+        variant:
+          - kernel_flavor: asus
+            platforms: '["x86_64"]'
+          - kernel_flavor: fsync
+            platforms: '["x86_64"]'
+          - kernel_flavor: fsync-ba
+            platforms: '["x86_64"]'
+          - kernel_flavor: bazzite
+            platforms: '["x86_64", "aarch64"]'
+          - kernel_flavor: surface
+            platforms: '["x86_64"]'
+          - kernel_flavor: main
+            platforms: '["x86_64", "aarch64"]'
+          - kernel_flavor: coreos-stable
+            platforms: '["x86_64", "aarch64"]'
+          - kernel_flavor: coreos-testing
+            platforms: '["x86_64", "aarch64"]'
         fedora_version:
           - 40
           - 41
-        platform:
-          - x86_64
-          - aarch64
         exclude:
-          - fedora_version: 40
-            kernel_flavor: asus
-          - fedora_version: 41
-            kernel_flavor: fsync
-          - fedora_version: 41
-            kernel_flavor: fsync-ba
-          - fedora_version: 40
-            kernel_flavor: bazzite
-          - fedora_version: 40
-            kernel_flavor: coreos-testing
-          - kernel_flavor: asus
-            platform: aarch64
-          - kernel_flavor: fsync
-            platform: aarch64
-          - kernel_flavor: fsync-ba
-            platform: aarch64
-          - kernel_flavor: surface
-            platform: aarch64
+          -   { 'fedora_version': 40,  'variant':  {  'kernel_flavor': 'asus',  'platforms': '["x86_64"]' } }
+          -   { 'fedora_version': 41,  'variant':  {  'kernel_flavor': 'fsync',  'platforms': '["x86_64"]' } }
+          -   { 'fedora_version': 41,  'variant':  {  'kernel_flavor': 'fsync-ba',  'platforms': '["x86_64"]' } }
+          -   { 'fedora_version': 40,  'variant':  {  'kernel_flavor': 'bazzite',  'platforms': '["x86_64", "aarch64"]' } }
+          -   { 'fedora_version': 40,  'variant':  {  'kernel_flavor': 'coreos-testing',  'platforms': '["x86_64", "aarch64"]' } }
+
+  check:
+    name: Check all builds successful
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Exit on failure
+        if: ${{ needs.build.result == 'failure' }}
+        shell: bash
+        run: exit 1
+      - name: Exit
+        shell: bash
+        run: exit 0

@@ -2,8 +2,8 @@ name: Cache Kernels
 on:
   workflow_call:
     inputs:
-      platform:
-        description: 'Platform to build for e.g. x86_64, aarch64'
+      platforms:
+        description: 'List of platforms to build for, in JSON array (string) e.g. ["x86_64", "aarch64"]'
         required: true
         type: string
       kernel_flavor:
@@ -19,24 +19,30 @@ env:
   IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}-${{ inputs.platform }}-${{ inputs.kernel_flavor }}-${{ inputs.fedora_version }}
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}-${{ inputs.kernel_flavor }}-${{ inputs.fedora_version }}
   cancel-in-progress: true
 
 jobs:
   build:
     name: kernel-cache
-    runs-on: ${{ inputs.platform == 'x86_64' && 'ubuntu-24.04' || 'ubuntu-24.04-arm' }}
+    strategy:
+      matrix:
+        platform: ${{ fromJSON(inputs.platforms) }}
+    runs-on: ${{ matrix.platform == 'x86_64' && 'ubuntu-24.04' || 'ubuntu-24.04-arm' }}
     permissions:
       contents: read
       packages: write
       id-token: write
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref || github.run_id }}-${{ inputs.kernel_flavor }}-${{ inputs.fedora_version }}-${{ matrix.platform }}
+      cancel-in-progress: true
 
     steps:
       - name: Checkout Push to Registry action
         uses: actions/checkout@v4
 
       - name: Install podman, buildah and skopeo (aarch64 only)
-        if: inputs.platform == 'aarch64'
+        if: matrix.platform == 'aarch64'
         id: install_container_tools
         run: sudo apt update && sudo apt install -y podman buildah skopeo
 
@@ -128,7 +134,7 @@ jobs:
                 ;;
               "bazzite")
                 latest="$(curl "https://api.github.com/repos/hhd-dev/kernel-bazzite/releases/latest" )"
-                linux=$(echo -E "$latest" | jq -r '.assets[].name' | grep -E 'kernel-.*.rpm' | grep "fc${{ inputs.fedora_version }}.${{ inputs.platform }}" | head -1 | sed "s/kernel-//g" | sed "s/.rpm//g" )
+                linux=$(echo -E "$latest" | jq -r '.assets[].name' | grep -E 'kernel-.*.rpm' | grep "fc${{ inputs.fedora_version }}.${{ matrix.platform }}" | head -1 | sed "s/kernel-//g" | sed "s/.rpm//g" )
                 build_tag=$(echo -E $latest | jq -r '.tag_name')
                 ;;
               "surface")
@@ -334,16 +340,3 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           echo "${{ toJSON(steps.push.outputs) }}"
-
-  check:
-    name: Check all builds successful
-    runs-on: ubuntu-latest
-    needs: [build]
-    steps:
-      - name: Exit on failure
-        if: ${{ needs.build.result == 'failure' }}
-        shell: bash
-        run: exit 1
-      - name: Exit
-        shell: bash
-        run: exit 0

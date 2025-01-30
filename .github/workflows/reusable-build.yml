@@ -15,7 +15,6 @@ on:
         required: true
         type: string
 
-
 env:
   IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
 
@@ -211,7 +210,10 @@ jobs:
           for TAG in "${alias_tags[@]}"; do
               echo "${TAG}"
           done
-          
+
+          # tags with multiple containers (one for each platform) 
+          manifest_tags=()
+
           # if there are more than one platforms for this kernel flavor and version
           # then separate platform specific and independent tags
           # use platform specific ones with build and push action
@@ -228,23 +230,17 @@ jobs:
               fi
             done
 
-            # single_container_tags used with build and push action
-            single_container_tags=("${platform_specific_tags[@]}")
-            # manifest_list_tags used in follow up job 
-            manifest_list_tags=("${platform_independent_tags[@]}")
+            # tags used with build and push action
+            alias_tags=("${platform_specific_tags[@]}")
 
-          # if just one platform do the usual build and tag
-          else
-            # all tags applied during build and push 
-            single_container_tags=("${alias_tags[@]}")
-            # nothing to do here
-            manifest_list_tags=()
+            # manifest_tags used in the follow up job
+            manifest_tags=("${platform_independent_tags[@]}")
+
           fi
-            
+
           echo "alias_tags=${alias_tags[*]}" >> $GITHUB_OUTPUT
           echo "date=$(date '+%Y%m%d.0')" >> $GITHUB_ENV
-          echo "single_container_tags=${single_container_tags[*]}" >> $GITHUB_OUTPUT
-          echo "manifest_list_tags=${manifest_list_tags[*]}" >> $GITHUB_OUTPUT
+          echo "manifest_tags=${manifest_tags[*]}" >> $GITHUB_OUTPUT
 
       - name: Build Metadata
         uses: docker/metadata-action@v5
@@ -283,7 +279,7 @@ jobs:
           containerfiles: |
             ./Containerfile
           image: ${{ inputs.kernel_flavor }}-kernel
-          tags: ${{ steps.generate_tags.outputs.single_container_tags }}
+          tags: ${{ steps.generate_tags.outputs.alias_tags }}
           build-args: |
             FEDORA_VERSION=${{ inputs.fedora_version }}
             KERNEL_VERSION=${{ env.kernel_release }}
@@ -301,9 +297,9 @@ jobs:
             sudo apt update
             sudo apt install sbsigntool curl openssl rpm2cpio
           fi
-          podman create --name "${{ inputs.kernel_flavor}}"-kernel-"$(echo "${{ steps.generate_tags.outputs.single_container_tags }}" | cut -d " " -f 1)" "${{ inputs.kernel_flavor}}"-kernel:$(echo "${{ steps.generate_tags.outputs.single_container_tags }}" | cut -d " " -f 1) sh
-          podman export "${{ inputs.kernel_flavor}}"-kernel-"$(echo "${{ steps.generate_tags.outputs.single_container_tags }}" | cut -d " " -f 1)" > /tmp/"${{ inputs.kernel_flavor}}"-kernel-"$(echo "${{ steps.generate_tags.outputs.single_container_tags }}" | cut -d " " -f 1)".tar
-          tar xvf /tmp/"${{ inputs.kernel_flavor}}"-kernel-"$(echo "${{ steps.generate_tags.outputs.single_container_tags }}" | cut -d " " -f 1)".tar -C /tmp
+          podman create --name "${{ inputs.kernel_flavor}}"-kernel-"$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1)" "${{ inputs.kernel_flavor}}"-kernel:$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1) sh
+          podman export "${{ inputs.kernel_flavor}}"-kernel-"$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1)" > /tmp/"${{ inputs.kernel_flavor}}"-kernel-"$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1)".tar
+          tar xvf /tmp/"${{ inputs.kernel_flavor}}"-kernel-"$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1)".tar -C /tmp
           cd /tmp/tmp/rpms/
           if [[ "${{ inputs.kernel_flavor }}" == "surface" ]]; then
             rpm2cpio kernel-surface-core-"${{ env.kernel_release }}".rpm | cpio -idmv
@@ -381,17 +377,17 @@ jobs:
       # We create directory for each tag, then put a file with same name as the platform
       # and one of the platform specific tags as the content 
       - name: Save Manifest List Tags
-        if: steps.generate_tags.outputs.manifest_list_tags != ''
+        if: steps.generate_tags.outputs.manifest_tags != ''
         run: |
           mkdir -p /tmp/outputs/tags
           IFS=' '
-          for tag in ${{ steps.generate_tags.outputs.manifest_list_tags }}; do
+          for tag in ${{ steps.generate_tags.outputs.manifest_tags }}; do
             mkdir "/tmp/outputs/tags/$tag"
-            echo "$(echo "${{ steps.generate_tags.outputs.single_container_tags }}" | cut -d " " -f 1)" > "/tmp/outputs/tags/$tag/${{ matrix.platform }}"
+            echo "$(echo "${{ steps.generate_tags.outputs.alias_tags }}" | cut -d " " -f 1)" > "/tmp/outputs/tags/$tag/${{ matrix.platform }}"
           done
 
       - name: Upload Output Artifacts
-        if: steps.generate_tags.outputs.manifest_list_tags != ''
+        if: steps.generate_tags.outputs.manifest_tags != ''
         uses: actions/upload-artifact@v4
         with:
           name: ${{inputs.kernel_flavor}}-${{inputs.fedora_version}}-${{ matrix.platform }}
@@ -401,7 +397,7 @@ jobs:
             /tmp/outputs/tags/*
 
   # This job recieves tags from the build job as artifacts and then
-  # creates final manifests lists for multi platform images 
+  # creates final manifests lists for multi platform images
   write-manifests:
     name: Write manifests for build images
     if: needs.build.outputs.number_of_platforms > 1
@@ -421,8 +417,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create Manifest
-        id: create-manifest
+      - name: Create and Push Manifest
         env:
           IMAGE_NAME: "${{ inputs.kernel_flavor }}-kernel"
         run: |

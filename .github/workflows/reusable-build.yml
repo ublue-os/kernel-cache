@@ -30,8 +30,6 @@ jobs:
       matrix:
         kernel_flavor:
           - asus
-          - fsync
-          - fsync-ba
           - bazzite
           - surface
           - main
@@ -43,10 +41,6 @@ jobs:
         exclude:
           - fedora_version: 40
             kernel_flavor: asus
-          - fedora_version: 41
-            kernel_flavor: fsync
-          - fedora_version: 41
-            kernel_flavor: fsync-ba
           - fedora_version: 40
             kernel_flavor: bazzite
           - fedora_version: 40
